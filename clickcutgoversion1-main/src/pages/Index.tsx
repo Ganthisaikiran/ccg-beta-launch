@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import logoImg from "@/assets/logo.jpg";
 import heroBgImg from "@/assets/hero_wedding.jpg";
-import { Check, Zap, Clock, Star, Shield, Users, ChevronDown, MessageCircle, ArrowRight, Play, Plus } from "lucide-react";
+import { Check, Zap, Clock, Star, Shield, Users, ChevronDown, MessageCircle, ArrowRight, Play, Plus, Mail, Phone } from "lucide-react";
 
 /* ─── Injected styles ─────────────────────────────────────────────────── */
 const globalStyles = `
@@ -55,6 +55,18 @@ const globalStyles = `
   .pricing-scroll::-webkit-scrollbar-thumb { background: #f97316; border-radius: 4px; }
   .pricing-card-wrap { min-width: 80vw; scroll-snap-align: start; flex-shrink: 0; }
 }
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  display: flex;
+  white-space: nowrap;
+  animation: marquee 30s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
 `;
 
 const WA_NUMBER = "917675957990";
@@ -63,15 +75,13 @@ const waLink = `https://wa.me/${WA_NUMBER}?text=${WA_MSG}`;
 
 /* ─── Logo Component ─────────────────────────────────────────────────── */
 const Logo = ({ size = "md" }: { size?: "sm" | "md" | "lg" }) => {
-  const imgSize = size === "lg" ? "110px" : size === "sm" ? "64px" : "90px";
+  const imgSize = size === "lg" ? "200px" : size === "sm" ? "90px" : "160px";
   return (
-    /* isolation: isolate keeps mix-blend-mode contained to the logo only */
     <div
-      className="logo-icon flex-shrink-0"
+      className="flex-shrink-0"
       style={{
         width: imgSize,
         height: imgSize,
-        isolation: "isolate",
         position: "relative",
       }}
     >
@@ -83,10 +93,8 @@ const Logo = ({ size = "md" }: { size?: "sm" | "md" | "lg" }) => {
           height: "100%",
           objectFit: "contain",
           display: "block",
-          /* screen blend makes the white bg transparent on dark backgrounds */
           mixBlendMode: "screen",
-          /* Punch up the red colour to make it vivid */
-          filter: "saturate(1.4) brightness(1.2)",
+          filter: "saturate(1.8) brightness(1.4) contrast(1.15)",
         }}
       />
     </div>
@@ -125,109 +133,132 @@ const Index = () => {
     experience: "", wouldRecommend: "", permission: false,
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  const [showCreatorForm, setShowCreatorForm] = useState(false);
+  const [creatorData, setCreatorData] = useState({
+    name: "", phone: "", portfolioUrl: "", instagramHandle: "",
+    experienceLevel: "", about: ""
+  });
+  const [creatorSubmitted, setCreatorSubmitted] = useState(false);
+  const [creatorSubmitting, setCreatorSubmitting] = useState(false);
+  const [creatorError, setCreatorError] = useState("");
+
+
+
   const toggleFaq = (i: number) => setOpenFaq(openFaq === i ? null : i);
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); setSubmitted(true); };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(feedback),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Something went wrong");
+      }
+
+      setSubmitted(true);
+    } catch (err: any) {
+      setSubmitError(err.message || "Failed to submit. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreatorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatorSubmitting(true);
+    setCreatorError("");
+
+    try {
+      const res = await fetch("/api/creators", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(creatorData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Something went wrong");
+      }
+
+      setCreatorSubmitted(true);
+    } catch (err: any) {
+      setCreatorError(err.message || "Failed to submit application.");
+    } finally {
+      setCreatorSubmitting(false);
+    }
+  };
 
   /* ─── DATA ──────────────────────────────────────────────────────── */
 
-  /**
-   * PRICING STRATEGY (Business Strategist Logic):
-   * - Spark: Low entry. Hooks the customer. Zero risk.
-   * - Rise: Mid-range. Gives more, signals seriousness.
-   * - Signature: ANCHOR. Most popular. Priced to feel "just right" (Goldilocks effect).
-   * - Creator: Aspirational. Premium without being extreme. User-specified.
-   * - Legacy: Prestige tier. Loss-aversion headline. Only for high-stakes events.
-   */
-  const pricingPlans = [
+  /* Event Plans (non-wedding) */
+  const eventPlans = [
     {
-      tier: "Spark",
+      tier: "Express Reel",
       price: "₹1,999",
-      hook: "Your first viral moment",
-      badge: null,
-      isPopular: false,
       features: [
-        { text: "1 Reel (30–45 sec)", included: true },
-        { text: "1 Hour Shoot", included: true },
-        { text: "Basic Edit", included: true },
-        { text: "Same-Day Delivery", included: true },
-        { text: "Hyderabad Travel Included", included: true },
-        { text: "Watermark on Reel", included: false },
-        { text: "Raw Footage", included: false },
+        "1 Hour Shoot",
+        "1 Edited Reel",
+        "Shot on Latest iPhone",
+        "ClickCutGo Signature Branding",
       ],
-      cta: "Start Here",
-      ctaNote: "Perfect for first-timers",
     },
     {
-      tier: "Rise",
+      tier: "Creator Pro",
       price: "₹4,999",
-      hook: "Events that deserve a story",
-      badge: null,
-      isPopular: false,
-      features: [
-        { text: "3 Reels (30–45 sec each)", included: true },
-        { text: "3 Hours Shoot", included: true },
-        { text: "Custom Edits", included: true },
-        { text: "No Watermark", included: true },
-        { text: "Same-Day Delivery", included: true },
-        { text: "Hyderabad Travel Included", included: true },
-        { text: "Raw Footage", included: false },
-      ],
-      cta: "Book Rise",
-      ctaNote: "Great for brand events",
-    },
-    {
-      tier: "Signature",
-      price: "₹6,999",
-      hook: "The complete event package",
-      badge: "Most Chosen",
       isPopular: true,
       features: [
-        { text: "6 Reels (30–45 sec each)", included: true },
-        { text: "On-Spot Editing", included: true },
-        { text: "3–4 Hours Coverage", included: true },
-        { text: "No Watermark", included: true },
-        { text: "Raw Footage Included", included: true },
-        { text: "Hyderabad Travel Included", included: true },
-        { text: "Priority Support", included: true },
+        "Up to 3 Hours Shoot",
+        "3 Edited Reels",
+        "ClickCutGo Signature Branding",
       ],
-      cta: "Book Signature",
-      ctaNote: "Loved by 80% of clients",
     },
+  ];
+
+  /* Wedding Plans */
+  const weddingPlans = [
     {
-      tier: "Creator",
-      price: "₹9,999",
-      hook: "Full professional coverage",
-      badge: null,
-      isPopular: false,
-      features: [
-        { text: "6 Reels (Custom Length)", included: true },
-        { text: "3–4 Hours Coverage", included: true },
-        { text: "Raw Footage Included", included: true },
-        { text: "1 Dedicated Onsite Creator", included: true },
-        { text: "Complimentary Portraits", included: true },
-        { text: "No Watermark", included: true },
-        { text: "Priority Delivery", included: true },
-      ],
-      cta: "Book Creator",
-      ctaNote: "Best for weddings & launches",
-    },
-    {
-      tier: "Legacy",
+      tier: "Signature Wedding",
       price: "₹14,999",
-      hook: "Your event, immortalized",
-      badge: "High-Impact Events",
-      isPopular: false,
       features: [
-        { text: "15 Reels", included: true },
-        { text: "4+ Hours Full Coverage", included: true },
-        { text: "Dedicated Creator Team", included: true },
-        { text: "Premium Cinematic Edit", included: true },
-        { text: "Raw + Edited Files", included: true },
-        { text: "Priority Delivery", included: true },
-        { text: "Complimentary Portraits", included: true },
+        "1 Event Coverage",
+        "3 Reels",
+        "Portraits",
+        "Raw Data",
       ],
-      cta: "Book Legacy",
-      ctaNote: "For unforgettable events",
+    },
+    {
+      tier: "Grand Wedding",
+      price: "₹24,999",
+      features: [
+        "2 Events Coverage",
+        "6 Reels",
+        "Portraits",
+        "Raw Data",
+      ],
+    },
+    {
+      tier: "Royal Wedding Experience",
+      price: "₹39,999",
+      features: [
+        "3 Events Coverage",
+        "10 Reels",
+        "Portraits",
+        "Onsite Creator",
+        "Raw Data",
+      ],
     },
   ];
 
@@ -239,35 +270,30 @@ const Index = () => {
   ];
 
   const whyUs = [
-    { icon: <Zap size={20} />, title: "Delivered Before Event Ends", desc: "Post while the energy is still live — same day, every time." },
+    { icon: <Zap size={20} />, title: "Delivered Before Event Ends", desc: "Post while the energy is still live. Same day, every time." },
     { icon: <Clock size={20} />, title: "Real-Time Editing", desc: "We edit on the spot. No delays. No follow-ups. Done before you leave." },
     { icon: <Star size={20} />, title: "100% Shot on iPhone", desc: "Native 4K vertical video, shot & edited on iPhone. Built exactly for Instagram Reels." },
-    { icon: <Users size={20} />, title: "Limited Slots Per Day", desc: "Only 3 bookings/day — so every client gets our full attention." },
+    { icon: <Users size={20} />, title: "Limited Slots Per Day", desc: "Only 3 bookings/day so every client gets our full attention." },
     { icon: <Shield size={20} />, title: "50% Refund Guarantee", desc: "Late? You get 50% back. No questions asked." },
   ];
 
-  const testimonials = [
-    { quote: "Got my reel before the event ended. Absolutely insane quality.", name: "Ananya R.", role: "Event Organizer, Hyderabad", stars: 5 },
-    { quote: "Finally, a creator who actually shows up on time and delivers.", name: "Karthik R.", role: "Event Lead, Hyderabad", stars: 5 },
-    { quote: "My wedding reel hit 50K views in 2 days. Couldn't be happier!", name: "Sanjana R.", role: "Wedding Planner", stars: 5 },
-    { quote: "Our brand launch reel went viral. ClickCutGo is the real deal.", name: "Arjun V.", role: "Marketing Head", stars: 4 },
-  ];
+
 
   const steps = [
     { num: "01", title: "Book in 30 Seconds", desc: "Pick your package. Lock your slot instantly via WhatsApp." },
     { num: "02", title: "Creator Arrives On Time", desc: "iPhone ready. Eye sharp. Energy matched to your event." },
-    { num: "03", title: "Shot & Edited on iPhone — Live", desc: "Every frame captured and cut on iPhone, right at your event, in real time." },
+    { num: "03", title: "Shot & Edited on iPhone, Live", desc: "Every frame captured and cut on iPhone, right at your event, in real time." },
     { num: "04", title: "Reel Delivered Instantly", desc: "Instagram-ready 9:16 reel handed to you before you leave the venue." },
   ];
 
   const faqs = [
-    { q: "How fast do you deliver the reels?", a: "Your first teaser reel is ready within 10 minutes of a key moment. We edit live at the event — full reels delivered same-day." },
-    { q: "What camera do you use?", a: "Everything is shot and edited entirely on iPhone — 4K vertical, native 9:16 format, perfect for Instagram Reels. No heavy gear, no setup time. Just fast, clean content." },
+    { q: "How fast do you deliver the reels?", a: "Your first teaser reel is ready within 10 minutes of a key moment. We edit live at the event and full reels are delivered same-day." },
+    { q: "What camera do you use?", a: "Everything is shot and edited entirely on iPhone. 4K vertical, native 9:16 format, perfect for Instagram Reels. No heavy gear, no setup time. Just fast, clean content." },
     { q: "What events do you cover?", a: "Weddings, corporate events, college fests, brand launches, influencer meetups, award ceremonies, and more." },
     { q: "How do I book?", a: "Click 'Book Now' or message us on WhatsApp at +91 76759 57990. Same-day bookings close at 6 PM." },
     { q: "How long is each reel?", a: "Reels are 30–45 seconds for most packs, optimised for Instagram Reels and short-form platforms." },
-    { q: "What makes ClickCutGo different?", a: "We shoot & edit entirely on iPhone at your venue, in real time. No waiting days for a file. Your reel is ready before the event ends — with a 50% refund guarantee if we're ever late." },
-    { q: "Is raw footage included?", a: "Raw footage is included in the Signature, Creator, and Legacy packs. It can also be purchased as an Add-On." },
+    { q: "What makes ClickCutGo different?", a: "We shoot & edit entirely on iPhone at your venue, in real time. No waiting days for a file. Your reel is ready before the event ends, with a 50% refund guarantee if we're ever late." },
+    { q: "Is raw footage included?", a: "Raw footage is included in the Signature Wedding, Grand Wedding, and Royal Wedding Experience packs. It can also be purchased as an Add-On." },
     { q: "Do you travel outside Hyderabad?", a: "Travel is included within Hyderabad city limits. Outstation coverage is available for premium packages at an additional charge." },
   ];
 
@@ -277,15 +303,16 @@ const Index = () => {
       <style>{globalStyles}</style>
 
       {/* ── NAV ───────────────────────────────────────────────────── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-black/90 backdrop-blur-md border-b border-white/8" style={{ minHeight: "68px", paddingTop: "6px", paddingBottom: "6px", paddingLeft: "24px", paddingRight: "24px" }}>
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-black/90 backdrop-blur-md border-b border-white/8" style={{ minHeight: "90px", paddingTop: "6px", paddingBottom: "6px", paddingLeft: "24px", paddingRight: "24px" }}>
         <a href="/" className="flex items-center">
           <Logo size="md" />
         </a>
         <div className="hidden md:flex items-center gap-7 text-sm font-semibold text-white/60">
+          <a href="/" className="hover:text-white transition-colors">Home</a>
           <a href="#how" className="hover:text-white transition-colors">How It Works</a>
-          <a href="#why" className="hover:text-white transition-colors">Why Us</a>
+          <a href="#why" className="hover:text-white transition-colors">Why ClickCutGo</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
-          <a href="#reviews" className="hover:text-white transition-colors">Reviews</a>
+          <a href="#pricing" className="hover:text-white transition-colors">Events</a>
           <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
         </div>
         <a
@@ -306,11 +333,11 @@ const Index = () => {
           style={{
             backgroundImage: `url(${heroBgImg})`,
             backgroundSize: "cover",
-            backgroundPosition: "center top",
+            backgroundPosition: "center 25%",
           }}
         />
         {/* Layered dark overlays for depth */}
-        <div className="absolute inset-0 z-0" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.85) 100%)" }} />
+        <div className="absolute inset-0 z-0" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.75) 100%)" }} />
 
         {/* Subtle orange vignette */}
         <div className="absolute bottom-0 left-0 right-0 h-40 z-0" style={{ background: "linear-gradient(to top, rgba(249,115,22,0.12), transparent)" }} />
@@ -323,14 +350,14 @@ const Index = () => {
           </div>
 
           <h1 className="fade-up-2 text-5xl sm:text-6xl md:text-7xl font-black leading-[1.05] mb-5" style={{ textShadow: "0 2px 30px rgba(0,0,0,0.8)" }}>
-            Own the Event.<br />
+            Instant Reel Creation<br />
             <span style={{ color: "#f97316", textShadow: "0 0 40px rgba(249,115,22,0.5)" }}>
-              Rule the Feed.
+              for Events in Hyderabad
             </span>
           </h1>
 
           <p className="fade-up-3 text-lg md:text-2xl font-semibold mb-10" style={{ color: "rgba(255,255,255,0.88)", textShadow: "0 1px 12px rgba(0,0,0,0.6)" }}>
-            Shoot. Edit. Deliver — Before Your Event Ends.
+            Shoot. Edit. Deliver. Before Your Event Ends.
           </p>
 
           <div className="fade-up-4 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -352,22 +379,50 @@ const Index = () => {
 
           {/* Trust signals row */}
           <div className="fade-up-4 flex flex-wrap items-center justify-center gap-5 mt-10">
-            {["⭐ 4.8 Avg Rating", "🔒 50% Refund Guarantee", "⚡ Delivered Live"].map((t, i) => (
+            {["🚀 Now Launching in Hyderabad", "⚡ Delivered Live"].map((t, i) => (
               <span key={i} className="text-xs font-bold text-white/70 tracking-wide">{t}</span>
             ))}
           </div>
         </div>
       </section>
 
+      {/* ── TRUST MARQUEE ─────────────────────────────────────────── */}
+      <div className="py-6 bg-white/5 border-y border-white/5 overflow-hidden">
+        <div className="animate-marquee flex gap-12 items-center">
+          {[
+            "Weddings", "Brand Launches", "Influencer Meetups", "Corporate Gigs",
+            "College Fests", "Concert Tours", "Nightlife Events", "Award Nights",
+            "Store Openings", "Fashion Shows", "Private Gigs"
+          ].map((item, i) => (
+            <div key={i} className="flex items-center gap-4 min-w-max">
+              <span className="w-2 h-2 rounded-full bg-primary" />
+              <span className="text-white font-black text-sm uppercase tracking-[0.2em]">{item}</span>
+            </div>
+          ))}
+          {[
+            "Weddings", "Brand Launches", "Influencer Meetups", "Corporate Gigs",
+            "College Fests", "Concert Tours", "Nightlife Events", "Award Nights",
+            "Store Openings", "Fashion Shows", "Private Gigs"
+          ].map((item, i) => (
+            <div key={`dup-${i}`} className="flex items-center gap-4 min-w-max">
+              <span className="w-2 h-2 rounded-full bg-primary" />
+              <span className="text-white font-black text-sm uppercase tracking-[0.2em]">{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── HOW IT WORKS ──────────────────────────────────────────── */}
       <section id="how" className="py-20 px-6 bg-black/60">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-black mb-2">Zero Friction. <span className="text-primary">Maximum Impact.</span></h2>
-          <p className="text-muted-foreground mb-12">From booking to your reel going viral — in minutes.</p>
+          <p className="text-muted-foreground mb-12">From booking to your reel going viral. In minutes.</p>
+
+
+
           <div className="grid md:grid-cols-4 gap-6">
             {steps.map((s, i) => (
               <div key={i} className="flex flex-col items-center text-center p-6 bg-card rounded-2xl border border-border hover:border-primary/60 transition-colors">
-                <div className="text-4xl font-black text-primary/20 mb-2">{s.num}</div>
                 <div className="w-10 h-10 rounded-full bg-primary text-white font-black text-sm flex items-center justify-center mb-4">
                   {i + 1}
                 </div>
@@ -395,7 +450,6 @@ const Index = () => {
               </div>
             ))}
           </div>
-          {/* Guarantee pill */}
           <div className="mt-10 inline-flex items-center gap-4 px-7 py-5 bg-primary/10 border border-primary/30 rounded-2xl max-w-xl mx-auto">
             <span className="text-3xl">🛡️</span>
             <p className="text-foreground font-bold text-sm text-left">
@@ -405,6 +459,8 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+
 
       {/* ── EVENTS WE COVER ───────────────────────────────────────── */}
       <section className="py-16 px-6 bg-card/20">
@@ -443,81 +499,126 @@ const Index = () => {
       </section>
 
       {/* ── PRICING ───────────────────────────────────────────────── */}
-      <section id="pricing" className="py-20 px-4 md:px-6">
+      < section id="pricing" className="py-20 px-4 md:px-6" >
         <div className="max-w-6xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-black mb-2">
             Simple. Clear. <span className="text-primary">No Surprises.</span>
           </h2>
-          <p className="text-muted-foreground mb-3">Pick what fits your event. All packages include Hyderabad city travel.</p>
-          <p className="text-xs text-primary/70 font-semibold mb-12 uppercase tracking-widest">Scroll to see all plans →</p>
+          <p className="text-muted-foreground mb-12">Pick what fits your event. All packages include Hyderabad city travel.</p>
 
-          {/* Desktop grid / Mobile horizontal scroll */}
-          <div className="pricing-scroll md:grid md:grid-cols-3 lg:grid-cols-5 md:gap-4 md:items-start">
-            {pricingPlans.map((plan, i) => (
-              <div key={i} className="pricing-card-wrap">
-                <div
-                  className={`pricing-card relative flex flex-col rounded-2xl border transition-all h-full ${plan.isPopular
-                    ? "pricing-popular border-primary bg-gradient-to-b from-primary/20 to-primary/5 ring-2 ring-primary shadow-2xl shadow-primary/25 p-7"
-                    : plan.badge === "High-Impact Events"
-                      ? "border-amber-500/40 bg-card p-6"
-                      : "border-border bg-card p-6"
+          {/* ── EVENT PLANS ─────────────────────────────────────── */}
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto mb-16">
+            {eventPlans.map((plan, i) => (
+              <div
+                key={i}
+                className={`pricing-card relative flex flex-col rounded-2xl border transition-all p-7 ${plan.isPopular
+                  ? "pricing-popular border-primary bg-gradient-to-b from-primary/20 to-primary/5 ring-2 ring-primary shadow-2xl shadow-primary/25"
+                  : "border-border bg-card"
+                  }`}
+              >
+                {plan.isPopular && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-white text-[11px] font-black px-4 py-1.5 rounded-full whitespace-nowrap shadow-lg">
+                    🔥 Most Popular
+                  </div>
+                )}
+
+                <h3 className="font-black text-2xl mb-1 mt-2">{plan.tier}</h3>
+                <div className="mb-6">
+                  <span className="text-5xl font-black" style={{ color: "#f97316" }}>{plan.price}</span>
+                </div>
+
+                <ul className="space-y-3 mb-8 flex-1 text-left">
+                  {plan.features.map((f, j) => (
+                    <li key={j} className="flex items-center gap-3 text-sm text-foreground">
+                      <Check size={16} className="text-primary flex-shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                <a
+                  href={waLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`w-full text-center py-3.5 rounded-xl font-black text-sm transition-all hover:opacity-90 block ${plan.isPopular
+                    ? "bg-primary text-white shadow-lg shadow-primary/30"
+                    : "border border-primary text-primary hover:bg-primary hover:text-white"
                     }`}
                 >
-                  {/* Badges */}
-                  {plan.isPopular && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-white text-[11px] font-black px-4 py-1.5 rounded-full whitespace-nowrap shadow-lg">
-                      ⭐ Most Chosen
-                    </div>
-                  )}
-                  {plan.badge && !plan.isPopular && (
-                    <div className={`absolute -top-3.5 left-1/2 -translate-x-1/2 text-[11px] font-black px-3 py-1.5 rounded-full whitespace-nowrap shadow ${plan.badge === "High-Impact Events" ? "bg-amber-500 text-black" : "bg-card border border-primary text-primary"
-                      }`}>
-                      🔥 {plan.badge}
-                    </div>
-                  )}
+                  👉 Book Now
+                </a>
+              </div>
+            ))}
+          </div>
 
-                  {/* Header */}
-                  <div className="mt-3 mb-4 text-left">
-                    <h3 className="font-black text-xl mb-0.5">{plan.tier}</h3>
-                    <p className="text-muted-foreground text-xs">{plan.hook}</p>
+          {/* ── WEDDING DIVIDER ─────────────────────────────────── */}
+          <div className="mb-12">
+            <div className="inline-flex items-center gap-2 mb-4 px-5 py-2 rounded-full border border-primary/40 bg-primary/10">
+              <span className="text-lg">💍</span>
+              <span className="text-primary text-xs font-black uppercase tracking-widest">For Your Special Day</span>
+            </div>
+            <h3 className="text-3xl md:text-4xl font-black mb-2">
+              Wedding <span className="text-primary">Experiences</span>
+            </h3>
+            <p className="text-muted-foreground">Starting from <span className="text-primary font-black text-lg">₹14,999</span></p>
+          </div>
+
+          {/* ── WEDDING PLANS ──────────────────────────────────── */}
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-10">
+            {weddingPlans.map((plan, i) => (
+              <div
+                key={i}
+                className={`pricing-card relative flex flex-col rounded-2xl border transition-all p-7 ${i === 2
+                  ? "border-amber-500/50 bg-gradient-to-b from-amber-500/10 to-amber-500/5 ring-1 ring-amber-500/30"
+                  : i === 1
+                    ? "border-primary/40 bg-gradient-to-b from-primary/10 to-primary/5"
+                    : "border-border bg-card"
+                  }`}
+              >
+                {i === 2 && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-500 text-black text-[11px] font-black px-4 py-1.5 rounded-full whitespace-nowrap shadow-lg">
+                    👑 Premium
                   </div>
+                )}
 
-                  {/* Price */}
-                  <div className="mb-5 text-left">
-                    <span className="text-4xl font-black" style={{ color: "#f97316" }}>{plan.price}</span>
-                    <span className="text-muted-foreground text-xs ml-1">/ event</span>
-                  </div>
+                <h3 className="font-black text-xl mb-1 mt-2">{plan.tier}</h3>
+                <div className="mb-5">
+                  <span className="text-4xl font-black" style={{ color: "#f97316" }}>{plan.price}</span>
+                </div>
 
-                  {/* Features */}
-                  <ul className="space-y-2.5 mb-6 flex-1">
-                    {plan.features.map((f, j) => (
-                      <li key={j} className={`flex items-center gap-2.5 text-sm ${f.included ? "text-foreground" : "text-muted-foreground/40 line-through"}`}>
-                        {f.included
-                          ? <Check size={14} className="text-primary flex-shrink-0" />
-                          : <span className="w-3.5 h-3.5 flex-shrink-0 text-center text-xs">✕</span>
-                        }
-                        {f.text}
-                      </li>
-                    ))}
-                  </ul>
+                <ul className="space-y-3 mb-5 flex-1 text-left">
+                  {plan.features.map((f, j) => (
+                    <li key={j} className="flex items-center gap-3 text-sm text-foreground">
+                      <Check size={16} className="text-primary flex-shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
 
-                  {/* CTA */}
-                  <a
-                    href={waLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`w-full text-center py-3 rounded-xl font-black text-sm transition-all hover:opacity-90 block mb-2 ${plan.isPopular
-                      ? "bg-primary text-white shadow-lg shadow-primary/30"
-                      : "border border-primary text-primary hover:bg-primary hover:text-white"
-                      }`}
-                  >
-                    {plan.cta}
-                  </a>
-                  <p className="text-center text-xs text-muted-foreground">{plan.ctaNote}</p>
+                {/* Complimentary Pen Drive callout */}
+                <div className="flex items-center gap-2 mb-4 px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-xl">
+                  <span className="text-base">🎁</span>
+                  <span className="text-xs font-bold text-primary">Complimentary Pen Drive</span>
+                </div>
+
+                {/* Signature Branding */}
+                <div className="flex items-center gap-2 mb-5 text-xs text-muted-foreground font-semibold">
+                  <Check size={14} className="text-primary flex-shrink-0" />
+                  ClickCutGo Signature Branding
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Secure Your Date CTA */}
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cta-pulse inline-flex items-center gap-2 bg-primary text-white px-10 py-4 rounded-2xl font-black text-lg hover:opacity-90 transition-opacity shadow-2xl shadow-primary/30"
+          >
+            👉 Secure Your Date <ArrowRight size={20} />
+          </a>
 
           {/* Add-Ons */}
           <div className="mt-14 max-w-2xl mx-auto">
@@ -554,51 +655,147 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ──────────────────────────────────────────── */}
-      <section id="reviews" className="py-20 px-6 bg-card/20">
-        <div className="max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 bg-primary/10 border border-primary/30 rounded-full">
-            <span className="text-primary font-black text-xs">⭐ 4.8 Average Rating · Hyderabad Clients</span>
-          </div>
-          <h2 className="text-3xl md:text-4xl font-black mb-2">
-            Real Events. <span className="text-primary">Real Results.</span>
-          </h2>
-          <p className="text-muted-foreground mb-12">Not actors. Not stock reviews. Real clients who booked ClickCutGo.</p>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {testimonials.map((t, i) => (
-              <div key={i} className="flex flex-col bg-card border border-border rounded-2xl p-6 text-left hover:border-primary/40 transition-colors">
-                <div className="flex gap-0.5 mb-3">
-                  {Array.from({ length: 5 }).map((_, s) => (
-                    <Star key={s} size={13} className={s < t.stars ? "text-primary fill-primary" : "text-muted-foreground/20"} />
-                  ))}
-                </div>
-                <p className="text-sm text-muted-foreground italic mb-4 flex-1">"{t.quote}"</p>
-                <div>
-                  <p className="font-black text-sm">{t.name}</p>
-                  <p className="text-xs text-primary font-semibold">{t.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+
 
       {/* ── JOIN AS CREATOR ───────────────────────────────────────── */}
-      <section className="py-20 px-6">
+      < section className="py-20 px-6" >
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-black mb-3">Got the Eye for Reels?</h2>
           <p className="text-primary font-bold text-lg mb-3">Join India's fastest reel creator network.</p>
           <p className="text-muted-foreground mb-8">Elite creators. Top-tier gigs. Premium pay. We only work with the best.</p>
-          <a
-            href={waLink}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => setShowCreatorForm(true)}
             className="inline-flex items-center gap-2 border border-primary text-primary px-8 py-4 rounded-xl font-black text-lg hover:bg-primary hover:text-white transition-colors"
           >
             Apply as Creator <ArrowRight size={18} />
-          </a>
+          </button>
         </div>
       </section>
+
+      {/* ── CREATOR FORM MODAL ─────────────────────────────────────── */}
+      {
+        showCreatorForm && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-card border border-border rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl">
+              <button
+                onClick={() => setShowCreatorForm(false)}
+                className="absolute top-6 right-6 text-muted-foreground hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+
+              {creatorSubmitted ? (
+                <div className="text-center py-10">
+                  <div className="text-5xl mb-4">✨</div>
+                  <h3 className="font-black text-2xl mb-2">Application Received!</h3>
+                  <p className="text-muted-foreground">We'll review your portfolio and get in touch via WhatsApp/Phone soon.</p>
+                  <button
+                    onClick={() => setShowCreatorForm(false)}
+                    className="mt-8 bg-primary text-white px-8 py-3 rounded-xl font-bold hover:opacity-90 transition-opacity"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <h2 className="text-3xl font-black mb-2">Join the <span className="text-primary">Crew</span></h2>
+                  <p className="text-muted-foreground mb-8 text-sm">Fill out this quick form and our team will get in touch.</p>
+
+                  <form onSubmit={handleCreatorSubmit} className="space-y-5">
+                    <div className="grid md:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-sm font-black mb-2">Your Name *</label>
+                        <input
+                          required
+                          type="text"
+                          placeholder="Ananya Sharma"
+                          value={creatorData.name}
+                          onChange={(e) => setCreatorData({ ...creatorData, name: e.target.value })}
+                          className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:border-primary focus:outline-none transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-black mb-2">WhatsApp / Phone *</label>
+                        <input
+                          required
+                          type="tel"
+                          placeholder="9876543210"
+                          value={creatorData.phone}
+                          onChange={(e) => setCreatorData({ ...creatorData, phone: e.target.value })}
+                          className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:border-primary focus:outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-sm font-black mb-2">Portfolio / Reel Link *</label>
+                        <input
+                          required
+                          type="url"
+                          placeholder="Link to your best work"
+                          value={creatorData.portfolioUrl}
+                          onChange={(e) => setCreatorData({ ...creatorData, portfolioUrl: e.target.value })}
+                          className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:border-primary focus:outline-none transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-black mb-2">Instagram Handle</label>
+                        <input
+                          type="text"
+                          placeholder="@yourhandle"
+                          value={creatorData.instagramHandle}
+                          onChange={(e) => setCreatorData({ ...creatorData, instagramHandle: e.target.value })}
+                          className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:border-primary focus:outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-black mb-2">Experience Level</label>
+                      <select
+                        value={creatorData.experienceLevel}
+                        onChange={(e) => setCreatorData({ ...creatorData, experienceLevel: e.target.value })}
+                        className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:border-primary focus:outline-none transition-colors"
+                      >
+                        <option value="">Select experience</option>
+                        <option>Fresh Talent (0-1 year)</option>
+                        <option>Experienced (1-3 years)</option>
+                        <option>Pro Creator (3+ years)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-black mb-2">Tell us about yourself (optional)</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Why do you want to join ClickCutGo?"
+                        value={creatorData.about}
+                        onChange={(e) => setCreatorData({ ...creatorData, about: e.target.value })}
+                        className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:border-primary focus:outline-none transition-colors resize-none"
+                      />
+                    </div>
+
+                    {creatorError && (
+                      <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs">
+                        {creatorError}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={creatorSubmitting}
+                      className="w-full bg-primary text-white py-4 rounded-2xl font-black text-lg hover:opacity-90 transition-opacity shadow-lg shadow-primary/20 disabled:opacity-50"
+                    >
+                      {creatorSubmitting ? "Submitting..." : "Submit Application"}
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      }
 
       {/* ── FEEDBACK FORM (Redesigned) ─────────────────────────────── */}
       <section id="contact" className="py-20 px-6 bg-card/20">
@@ -734,11 +931,18 @@ const Index = () => {
                 </label>
               </div>
 
+              {submitError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
+                  {submitError}
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="w-full bg-primary text-white py-4 rounded-2xl font-black text-lg hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
+                disabled={submitting}
+                className="w-full bg-primary text-white py-4 rounded-2xl font-black text-lg hover:opacity-90 transition-opacity shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Submit My Review
+                {submitting ? "Submitting..." : "Submit My Review"}
               </button>
             </form>
           )}
@@ -793,30 +997,133 @@ const Index = () => {
         </div>
       </section>
 
+      {/* ── SEO CONTENT SECTION ────────────────────────────────────── */}
+      <section className="py-20 px-6 bg-card/5">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-black mb-10">
+            Hyderabad's Go-To for <span className="text-primary">Instant Event Reels</span>
+          </h2>
+
+          <div className="space-y-8 text-muted-foreground leading-relaxed text-[15px]">
+            <p>
+              ClickCutGo brings real-time reel creation to events across Hyderabad. From college fests to weddings and brand launches, we shoot and edit your Instagram-ready reel live, before the energy fades.
+            </p>
+
+            <div className="border-l-2 border-primary pl-5">
+              <p className="text-foreground font-bold text-lg">
+                This isn't traditional videography.<br />This is instant content.
+              </p>
+            </div>
+
+            <p>
+              Our creators capture your best moments in vertical 9:16, edit on-site, and deliver your reel before you leave the venue. No waiting for days. No chasing edits. No back-and-forth.
+            </p>
+
+            <div className="border-l-2 border-primary pl-5">
+              <p className="text-foreground font-bold text-lg">
+                Events move fast. Trends move faster.
+              </p>
+            </div>
+
+            <p>
+              Posting during the event boosts engagement while the vibe is still alive. That's why instant reel delivery matters. When your audience sees it live, it hits differently.
+            </p>
+
+            <p>
+              Whether it's a wedding highlight, influencer meetup, corporate event, or college fest performance, we turn moments into scroll-stopping reels in real time.
+            </p>
+
+            <div className="bg-card border border-border rounded-2xl p-8 my-10">
+              <h3 className="text-xl font-black text-foreground mb-5">Why Hyderabad chooses ClickCutGo</h3>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {[
+                  "Live shooting + live editing",
+                  "Limited slots for focused attention",
+                  "Vertical 4K iPhone production",
+                  "Built for Instagram from the start",
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-background rounded-xl px-4 py-3 border border-border">
+                    <Check size={16} className="text-primary flex-shrink-0" />
+                    <span className="text-sm font-semibold text-foreground">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p>
+              If you're looking for instant event reels in Hyderabad that feel premium, fast, and built to perform, this is it.
+            </p>
+
+            <div className="text-center py-6">
+              <p className="text-foreground font-black text-2xl">Your event happens once.</p>
+              <p className="text-primary font-black text-2xl mt-1">Your reel should be ready instantly.</p>
+              <a
+                href={waLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mt-6 text-primary font-bold hover:underline"
+              >
+                Secure your slot before today's bookings close <ArrowRight size={16} />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
       {/* ── FOOTER ────────────────────────────────────────────────── */}
-      <footer className="py-12 px-6 border-t border-border bg-card/10">
+      <footer className="py-14 px-6 border-t border-border bg-card/10">
         <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8">
-            <div className="text-center md:text-left">
-              <Logo size="md" />
-              <p className="text-muted-foreground text-sm mt-2">Hyderabad, India</p>
-              <div className="mt-3 space-y-1.5">
-                <p className="text-muted-foreground text-sm">
-                  📧 <a href="mailto:hello@clickcutgo.in" className="hover:text-primary transition-colors">hello@clickcutgo.in</a>
+          <div className="grid md:grid-cols-3 gap-10 mb-10">
+            {/* Column 1: Brand */}
+            <div>
+              <Logo size="sm" />
+              <p className="text-muted-foreground text-sm mt-3">Instant reel creation for events.</p>
+              <p className="text-muted-foreground text-xs mt-1">📍 Hyderabad, India</p>
+              <div className="mt-4 space-y-2">
+                <p className="text-muted-foreground text-sm flex items-center gap-2">
+                  <Mail size={14} className="text-primary flex-shrink-0" />
+                  <a href="mailto:hello@clickcutgo.in" className="hover:text-primary transition-colors">hello@clickcutgo.in</a>
                 </p>
-                <p className="text-muted-foreground text-sm">
-                  💬 <a href={waLink} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">+91 76759 57990</a>
+                <p className="text-muted-foreground text-sm flex items-center gap-2">
+                  <Phone size={14} className="text-primary flex-shrink-0" />
+                  <a href={waLink} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">+91 76759 57990</a>
                 </p>
               </div>
             </div>
-            <div className="flex flex-col items-center md:items-end gap-3">
-              <div className="flex flex-wrap gap-5 text-sm text-muted-foreground justify-center md:justify-end">
-                <a href="#" className="hover:text-foreground transition-colors">Privacy Policy</a>
-                <a href="#" className="hover:text-foreground transition-colors">Terms & Conditions</a>
-                <a href="#" className="hover:text-foreground transition-colors">Refund Policy</a>
+
+            {/* Column 2: Quick Links */}
+            <div>
+              <h4 className="font-black text-sm mb-4 text-foreground">Quick Links</h4>
+              <div className="flex flex-col gap-2.5 text-sm text-muted-foreground">
+                <a href="#how" className="hover:text-primary transition-colors">How It Works</a>
+                <a href="#why" className="hover:text-primary transition-colors">Why Us</a>
+                <a href="#pricing" className="hover:text-primary transition-colors">Pricing</a>
+                <a href="#faq" className="hover:text-primary transition-colors">FAQ</a>
               </div>
-              <p className="text-muted-foreground/50 text-xs">© 2026 ClickCutGo. All rights reserved.</p>
             </div>
+
+            {/* Column 3: Legal + Social */}
+            <div>
+              <h4 className="font-black text-sm mb-4 text-foreground">Legal</h4>
+              <div className="flex flex-col gap-2.5 text-sm text-muted-foreground">
+                <a href="/refund-policy" className="hover:text-primary transition-colors">Refund Policy</a>
+                <a href="/terms-and-conditions" className="hover:text-primary transition-colors">Terms & Conditions</a>
+              </div>
+              <h4 className="font-black text-sm mt-6 mb-3 text-foreground">Follow Us</h4>
+              <a
+                href="https://instagram.com/clickcutgo"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>
+                @clickcutgo
+              </a>
+            </div>
+          </div>
+
+          {/* Bottom bar */}
+          <div className="pt-6 border-t border-border/50 flex items-center justify-center">
+            <p className="text-muted-foreground/50 text-xs">© 2026 ClickCutGo. All rights reserved.</p>
           </div>
         </div>
       </footer>
@@ -829,7 +1136,7 @@ const Index = () => {
         className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-[#25D366] text-white rounded-full shadow-xl hover:scale-105 transition-transform px-4 py-3 md:px-5 md:py-3.5"
         aria-label="Chat on WhatsApp"
       >
-        <MessageCircle size={20} />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
         <span className="text-sm font-black hidden md:block">Chat Now</span>
       </a>
     </div>
